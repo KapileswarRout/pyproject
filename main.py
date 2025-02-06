@@ -55,7 +55,7 @@ def conventional_generation(remaining_demand, conventional_capacity):
 # Step 4: Frequency deviation function
 def grid_frequency(solar_output, wind_output, coal_output, gas_output, load_demand):
     total_generation = solar_output + wind_output + coal_output + gas_output
-    frequency_deviation = total_generation - load_demand
+    frequency_deviation = (total_generation - load_demand)*0.01  # Assume 1 MW deviation causes 0.01 Hz change
     return frequency_deviation
 
 # Step 5: Bee Search Algorithm (BSA) function
@@ -153,6 +153,7 @@ print('Starting simulation...')
 # Run BSA and PSO
 best_solution_bsa = bee_search_algorithm(renewable_capacity, conventional_capacity, load_demand, 1000)
 print('Best solution found by BSA:')
+print('[SOLAR    WIND   COAL     GAS]')
 print(best_solution_bsa)
 
 # Calculate total cost after BSA
@@ -162,6 +163,7 @@ print(f'Total cost after BSA: {total_cost_bsa:.2f}')
 
 best_solution_pso = particle_swarm_optimization(renewable_capacity, conventional_capacity, load_demand, 1000, 50)
 print('Best solution found by PSO:')
+print('[SOLAR   WIND     COAL   GAS]')
 print(best_solution_pso)
 
 # Calculate total cost after PSO
@@ -184,3 +186,42 @@ plt.ylabel('Load Demand (MW)')
 plt.title('Fluctuating Load Demand with Inertia')
 plt.grid(True)
 plt.show() 
+
+# Step 9: Frequency Deviation Plot Function with 50 Hz Base
+def plot_frequency_stability(renewable_capacity, conventional_capacity, load_demand, num_steps=100):
+    # Arrays to store frequency deviations over time
+    frequency_deviation = []
+
+    # Simulate frequency deviations over time
+    for t in range(num_steps):
+        # Generate renewable outputs
+        solar_output, wind_output = renewable_generation(renewable_capacity)
+        
+        # Calculate remaining demand
+        remaining_demand = load_demand[t] - (solar_output + wind_output)
+        
+        # Generate conventional outputs
+        coal_output, gas_output = conventional_generation(remaining_demand, conventional_capacity)
+        
+        # Calculate total power generated and deviation from demand
+        total_generation = solar_output + wind_output + coal_output + gas_output
+        deviation_mw = total_generation - load_demand[t]
+        
+        # Convert power deviation (MW) into frequency deviation (Hz) around 50 Hz
+        # Assume 1 MW deviation causes 0.01 Hz change (example sensitivity factor)
+        deviation_hz = 50 + (deviation_mw * 0.01)  # Adjust sensitivity as needed
+        frequency_deviation.append(deviation_hz)
+    
+    # Plot frequency deviations over time
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(num_steps), frequency_deviation, label="Frequency (Hz)")
+    plt.axhline(50, color='red', linestyle='--', label='Ideal Frequency (50 Hz)')
+    plt.xlabel('Time Step')
+    plt.ylabel('Frequency (Hz)')
+    plt.title('Grid Frequency Stability Over Time without algorithm')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+# Call the function to plot frequency stability
+plot_frequency_stability(renewable_capacity, conventional_capacity, load_demand)
