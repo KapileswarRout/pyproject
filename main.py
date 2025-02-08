@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # Step 1: Define grid parameters
-renewable_capacity = {'solar': 100, 'wind': 150}  # MW
-conventional_capacity = {'coal': 200, 'gas': 100}  # MW
+renewable_capacity = {'solar':2000, 'wind': 4000}  # MW
+conventional_capacity = {'coal': 12000, 'gas': 10000}  # MW
 
 
 
@@ -30,7 +30,7 @@ def fluctuating_load_pattern(base_demand, num_steps=100, max_variation=0.2, iner
         load[t] = min(base_demand * 1.5, load[t])  # Prevent excessively high load
     
     return load
-base_demand = 500
+base_demand = 25000  # 25,000 MW
 load_demand = fluctuating_load_pattern(base_demand)
 
 # Step 2: Renewable generation function
@@ -42,11 +42,11 @@ def renewable_generation(renewable_capacity):
 # Step 3: Conventional generation function
 def conventional_generation(remaining_demand, conventional_capacity):
     if isinstance(remaining_demand, np.ndarray):  # If remaining_demand is an array
-        coal_output = np.minimum(conventional_capacity['coal'], remaining_demand)
+        coal_output = np.minimum(0.8*conventional_capacity['coal'], remaining_demand)
         remaining_demand -= coal_output  # Reduce remaining demand by coal output
         gas_output = np.minimum(conventional_capacity['gas'], remaining_demand)
     else:  # If remaining_demand is a scalar
-        coal_output = min(conventional_capacity['coal'], remaining_demand)
+        coal_output = min(0.8*conventional_capacity['coal'], remaining_demand)
         remaining_demand -= coal_output
         gas_output = min(conventional_capacity['gas'], remaining_demand)
 
@@ -126,9 +126,9 @@ def calculate_total_cost(solar_output, wind_output, coal_output, gas_output):
     # Adjusted costs to reflect market prices more realistically
     cost_per_mw = {
         'solar': 50,  # $/MWh
-        'wind': 40,   # $/MWh
-        'coal': 20,   # $/MWh
-        'gas': 30     # $/MWh
+        'wind': 90,   # $/MWh
+        'coal': 130,   # $/MWh
+        'gas': 60     # $/MWh
     }
     
     # Ensure inputs are NumPy arrays
@@ -176,7 +176,13 @@ solar_output, wind_output = renewable_generation(renewable_capacity)
 remaining_demand = load_demand - (solar_output + wind_output)
 coal_output, gas_output = conventional_generation(remaining_demand, conventional_capacity)
 total_cost_without_algo = calculate_total_cost(solar_output, wind_output, coal_output, gas_output)
+
+#print(f'Load distribution without optimization algorithm: {solar_output:.2f}')
+#print(f'Load distribution without optimization algorithm: {wind_output:.2f}')
+#print(f'Load distribution without optimization algorithm: {coal_output:.2f}')
+#print(f'Load distribution without optimization algorithm: {gas_output:.2f}')
 print(f'Total cost without optimization algorithm: {total_cost_without_algo:.2f}')
+
 
 
 # Plot the fluctuating load demand
@@ -188,7 +194,7 @@ plt.grid(True)
 plt.show() 
 
 # Step 9: Frequency Deviation Plot Function with 50 Hz Base
-def plot_frequency_stability(renewable_capacity, conventional_capacity, load_demand, num_steps=100):
+def plot_frequency_stability_bsa(renewable_capacity, conventional_capacity, load_demand, num_steps=100):
     # Arrays to store frequency deviations over time
     frequency_deviation = []
 
@@ -204,12 +210,14 @@ def plot_frequency_stability(renewable_capacity, conventional_capacity, load_dem
         coal_output, gas_output = conventional_generation(remaining_demand, conventional_capacity)
         
         # Calculate total power generated and deviation from demand
-        total_generation = solar_output + wind_output + coal_output + gas_output
-        deviation_mw = total_generation - load_demand[t]
+        #total_generation = solar_output + wind_output + coal_output + gas_output
+
+        total = np.sum(best_solution_bsa)
+        deviation_mw = total - load_demand[t]
         
         # Convert power deviation (MW) into frequency deviation (Hz) around 50 Hz
         # Assume 1 MW deviation causes 0.01 Hz change (example sensitivity factor)
-        deviation_hz = 50 + (deviation_mw * 0.01)  # Adjust sensitivity as needed
+        deviation_hz = 50 + (deviation_mw * 0.000011)  # Adjust sensitivity as needed
         frequency_deviation.append(deviation_hz)
     
     # Plot frequency deviations over time
@@ -218,10 +226,51 @@ def plot_frequency_stability(renewable_capacity, conventional_capacity, load_dem
     plt.axhline(50, color='red', linestyle='--', label='Ideal Frequency (50 Hz)')
     plt.xlabel('Time Step')
     plt.ylabel('Frequency (Hz)')
-    plt.title('Grid Frequency Stability Over Time without algorithm')
+    plt.title('Grid Frequency Stability Over Time with BSA algorithm')
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+
+def plot_frequency_stability_pso(renewable_capacity, conventional_capacity, load_demand, num_steps=100):
+    # Arrays to store frequency deviations over time
+    frequency_deviation = []
+
+    # Simulate frequency deviations over time
+    for t in range(num_steps):
+        # Generate renewable outputs
+        solar_output, wind_output = renewable_generation(renewable_capacity)
+        
+        # Calculate remaining demand
+        remaining_demand = load_demand[t] - (solar_output + wind_output)
+        
+        # Generate conventional outputs
+        coal_output, gas_output = conventional_generation(remaining_demand, conventional_capacity)
+        
+        # Calculate total power generated and deviation from demand
+        #total_generation = solar_output + wind_output + coal_output + gas_output
+
+        total = np.sum(best_solution_pso)
+        deviation_mw = total - load_demand[t]
+        
+        # Convert power deviation (MW) into frequency deviation (Hz) around 50 Hz
+        # Assume 1 MW deviation causes 0.01 Hz change (example sensitivity factor)
+        deviation_hz = 50 + (deviation_mw * 0.000011)  # Adjust sensitivity as needed
+        frequency_deviation.append(deviation_hz)
+    
+    # Plot frequency deviations over time
+    plt.figure(figsize=(10, 5))
+    plt.plot(range(num_steps), frequency_deviation, label="Frequency (Hz)")
+    plt.axhline(50, color='red', linestyle='--', label='Ideal Frequency (50 Hz)')
+    plt.xlabel('Time Step')
+    plt.ylabel('Frequency (Hz)')
+    plt.title('Grid Frequency Stability Over Time with PSO algorithm')
     plt.legend()
     plt.grid(True)
     plt.show()
 
 # Call the function to plot frequency stability
-plot_frequency_stability(renewable_capacity, conventional_capacity, load_demand)
+plot_frequency_stability_bsa(renewable_capacity, conventional_capacity, load_demand)
+plot_frequency_stability_pso(renewable_capacity, conventional_capacity, load_demand)
+
+
+
