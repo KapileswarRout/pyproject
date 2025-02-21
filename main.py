@@ -54,8 +54,22 @@ def conventional_generation(remaining_demand, conventional_capacity):
 
 # Step 4: Frequency deviation function
 def grid_frequency(solar_output, wind_output, coal_output, gas_output, load_demand):
-    total_generation = solar_output + wind_output + coal_output + gas_output
-    frequency_deviation = (total_generation - load_demand)*0.01  # Assume 1 MW deviation causes 0.01 Hz change
+    total_generation = solar_output + wind_output + coal_output + gas_output 
+    delta_P = total_generation - load_demand  # Power mismatch
+
+    # Inertia constants (H), lower for RES, higher for coal/gas
+    H_solar, H_wind, H_coal, H_gas = 0.05, 0.1, 5.0, 3.0
+    D_solar, D_wind, D_coal, D_gas= 0.02, 0.03, 0.3, 0.2  # Damping factors
+
+    # Weighted total inertia and damping effect
+    H_total = (solar_output * H_solar + wind_output * H_wind +
+               coal_output * H_coal + gas_output * H_gas  ) / (total_generation + 1e-6)
+
+    D_total = (solar_output * D_solar + wind_output * D_wind +
+               coal_output * D_coal + gas_output * D_gas  ) / (total_generation + 1e-6)
+
+    # Frequency deviation is higher if RES contribution is higher
+    frequency_deviation = (delta_P * 0.000011) / (H_total + D_total + 1e-6)  # Prevent div by zero
     return frequency_deviation
 
 # Step 5: Bee Search Algorithm (BSA) function
